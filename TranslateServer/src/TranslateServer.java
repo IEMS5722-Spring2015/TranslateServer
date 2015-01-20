@@ -14,7 +14,8 @@ import java.util.Set;
 
 
 public class TranslateServer {
-	private static final int portNumber = 4444;
+	private static final String hostAddress = "iems5722v.ie.cuhk.edu.hk";
+	private static final int portNumber = 3001;
 
 	ServerSocketChannel ssc;
 	private Selector selector;
@@ -29,6 +30,7 @@ public class TranslateServer {
 	// Accept new client and prepare for reading
 	private void doAccept(SelectionKey selKey) 
 	{
+		System.out.println("Trying to accept new client");
 		ServerSocketChannel server = (ServerSocketChannel) selKey.channel();
 		SocketChannel clientChannel;
 		try
@@ -51,6 +53,7 @@ public class TranslateServer {
 	// Read from a client
 	private void doRead(SelectionKey selKey)
 	{
+		System.out.println("Trying to read from client");
 		SocketChannel channel = (SocketChannel)selKey.channel();
 		// prepare buffer
 		readBuffer.clear();
@@ -96,6 +99,7 @@ public class TranslateServer {
 	
 	private void doWrite(SelectionKey selKey)
 	{
+		System.out.println("Trying to write to client");
 		SocketChannel channel = (SocketChannel) selKey.channel();
 		byte[] data = dataTracking.get(channel);
 		ByteBuffer bBuffer = ByteBuffer.wrap(data);
@@ -119,6 +123,7 @@ public class TranslateServer {
 	
 	private void disconnect(SelectionKey selKey)
 	{
+		System.out.println("Disconnecting client");
 		SocketChannel channel = (SocketChannel)selKey.channel();
 		InetAddress clientAddress = channel.socket().getInetAddress();
 		try{
@@ -149,16 +154,18 @@ public class TranslateServer {
 		wordDict.put("ten", "十");
 		
 		// Create non blocking server socket
+		System.out.println("Opening socket");
 		selector = SelectorProvider.provider().openSelector();
 		ssc = ServerSocketChannel.open();
 		// Bind the server to the socket
-		InetSocketAddress address = new InetSocketAddress(portNumber);
+		InetSocketAddress address = new InetSocketAddress(hostAddress, portNumber);
 		ssc.socket().bind(address);
 		ssc.configureBlocking(false);
 		
 		// Register socket for select events
 		SelectionKey acceptKey = ssc.register(selector, SelectionKey.OP_ACCEPT);
 		
+		System.out.println("Waiting for client");
 		while(true)
 		{	
 			selector.select();
@@ -189,6 +196,7 @@ public class TranslateServer {
 		TranslateServer translateServer = new TranslateServer();
 		try 
 		{
+			System.out.println("Starting server");
 			translateServer.startServer();
 		}
 		catch (Exception e)
