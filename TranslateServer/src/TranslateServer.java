@@ -1,5 +1,6 @@
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -22,7 +23,7 @@ public class TranslateServer {
 	public Map<String, String> wordDict = new HashMap<String, String>();
 	
 	// Read buffer
-	private ByteBuffer readBuffer = ByteBuffer.allocate(8192);
+	private ByteBuffer readBuffer = ByteBuffer.allocate(1024);
 	
 	// Track data to be written
 	private Map<SocketChannel,byte[]> dataTracking = new HashMap<SocketChannel, byte[]>();
@@ -37,9 +38,13 @@ public class TranslateServer {
 		{
 			clientChannel = server.accept();
 			clientChannel.configureBlocking(false);
-			// Register for reading
-			SelectionKey clientKey = clientChannel.register(selector, SelectionKey.OP_READ);
 			
+			// Register for reading
+			System.out.println("InterestOps (should be 1)" + String.valueOf(selKey.interestOps()));
+			clientChannel.register(selector, SelectionKey.OP_READ);
+			System.out.println("InterestOps " + String.valueOf(selKey.interestOps()));
+			
+			//dataTracking.put(clientChannel, new String("Hello from server\n").getBytes());
 			InetAddress clientAddress = clientChannel.socket().getInetAddress();
 			System.out.println("Accepted connection from " + clientAddress.getHostAddress()); 
 		}
@@ -81,17 +86,18 @@ public class TranslateServer {
 		byte[] data = new byte[len];
 		readBuffer.get(data, 0, len);
 		String input = new String(data, Charset.forName("UTF-8"));
+		input = input.replace("\n", "").replace("\r", "");
 		System.out.println("Received " + input);
 		
 		// translate
 		String output;
 		if(wordDict.containsKey(input))
 		{
-			output = wordDict.get(input);
+			output = wordDict.get(input) + "\n";
 		}
 		else
 		{
-			output = "Translate Error";
+			output = "Translate Error\n";
 		}
 		dataTracking.put(channel, output.getBytes());
 		selKey.interestOps(SelectionKey.OP_WRITE);
@@ -105,6 +111,8 @@ public class TranslateServer {
 		ByteBuffer bBuffer = ByteBuffer.wrap(data);
 		try 
 		{
+			String outStr = new String(data, "UTF-8");
+			System.out.println("Writing " + outStr);
 			int len = channel.write(bBuffer);
 			dataTracking.remove(channel);
 			if (len == -1)
@@ -163,17 +171,18 @@ public class TranslateServer {
 		ssc.configureBlocking(false);
 		
 		// Register socket for select events
-		SelectionKey acceptKey = ssc.register(selector, SelectionKey.OP_ACCEPT);
-		
-		System.out.println("Waiting for client");
+		ssc.register(selector, SelectionKey.OP_ACCEPT);
+
 		while(true)
 		{	
+			System.out.println("Waiting for client");
 			selector.select();
-			Set readyKeys = selector.selectedKeys();
-			Iterator iter = readyKeys.iterator();
+			Set<SelectionKey> readyKeys = selector.selectedKeys();
+			Iterator<SelectionKey> iter = readyKeys.iterator();
 			while(iter.hasNext())
 			{
 				SelectionKey selKey = (SelectionKey) iter.next();
+				System.out.println("Got key");
 				iter.remove();
 				if (selKey.isAcceptable())
 				{
